@@ -115,9 +115,6 @@ class AttendanceManager:
 
     def check_in_out(self, date: datetime.date, punches: list):
         """检查打卡数据"""
-        # 确保打卡数据成对出现
-        if len(punches) % 2 != 0:
-            return "缺卡异常"
 
         # 将打卡时间转换为datetime对象
         punches = [datetime.datetime.strptime(p, "%Y-%m-%d %H:%M:%S") for p in punches]
@@ -183,7 +180,7 @@ class AttendanceManager:
                     if self.is_flexible:
                         if workday_attendance.morning_in["status"] is None:
                             workday_attendance.set_status("morning_in", "正常", punch)
-                            afternoon_extension = am_start_time+FLEXIBLE_TIME - punch
+                            afternoon_extension = punch - am_start_time
 
                 # 处理(9:00,12:10)，上午上班判断&上午下班判断
                 elif am_end_time > punch:
@@ -231,7 +228,7 @@ class AttendanceManager:
                         elif len(middle_list) == 1:
                             if am_pm_line_time > middle_list[0]: #视为上午
                                 workday_attendance.set_status("morning_out", "正常", middle_list[0])
-                                workday_attendance.set_status("afternoon_in", "缺卡", middle_list[0])
+                                workday_attendance.set_status("afternoon_in", "缺卡", None)
                                 
                             else:
                                 workday_attendance.set_status("morning_out", "缺卡", None)
@@ -257,7 +254,7 @@ class AttendanceManager:
                         elif len(middle_list) == 1:
                             if am_pm_line_time > middle_list[0]: #视为上午
                                 workday_attendance.set_status("morning_out", "正常", middle_list[0])
-                                workday_attendance.set_status("afternoon_in", "缺卡", middle_list[0])
+                                workday_attendance.set_status("afternoon_in", "缺卡", None)
                                 
                             else:
                                 workday_attendance.set_status("morning_out", "缺卡", None)

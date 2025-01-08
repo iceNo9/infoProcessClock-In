@@ -143,8 +143,8 @@ if __name__ == "__main__":
     else:
         # 在 Nuitka 打包环境下使用自定义的数据
         input_file_path = "test.txt"  
-        year = 2025  # 使用预设年份
-        month = 1  # 使用预设月份
+        year = 2024  # 使用预设年份
+        month = 12  # 使用预设月份
 
         try:
             # 获取最近一次提交的 commit message
