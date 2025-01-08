@@ -122,7 +122,9 @@ if __name__ == "__main__":
     
 
     # 判断是否是 Nuitka 打包环境
-    if getattr(sys, 'frozen', False):
+    is_packaged = not hasattr(sys, "_MEIPASS") and not os.path.exists(__file__)
+
+    if is_packaged:
         print("运行环境: 打包")
         
         # 设置命令行参数解析器
