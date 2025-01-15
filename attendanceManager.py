@@ -686,7 +686,7 @@ class AttendanceManager:
         ws.append([
             "日期", "星期", "类型", "状态",  # 新增的“类型”和“状态”列
             "上午上班时间", "上午下班时间", "下午上班时间", "下午下班时间", 
-            "加班开始时间", "加班结束时间", "加班时长"
+            "加班开始时间", "加班结束时间", "加班时长", "加班原因"
         ])
 
         # 遍历考勤数据字典，逐行写入
@@ -752,7 +752,9 @@ class AttendanceManager:
                 # 非工作日数据
                 row.extend([data.work_start_time if data.work_start_time else "", 
                             data.work_end_time if data.work_end_time else ""])
-                row.extend([""] * 4)  # 其他列为空
+                row.extend([""] * 2)  # 其他列为空
+                row.extend([data.work_start_time if data.work_start_time else "", 
+                            data.work_end_time if data.work_end_time else ""])
                 row.extend([data.overtime_hours if data.overtime_hours else "",])
 
             # 写入当前行数据

@@ -139,12 +139,12 @@ if __name__ == "__main__":
         year = args.year  # 获取传入的年份
         month = args.month  # 获取传入的月份
 
-        commit_message="feat:初版作成，支持2024.12--2025.2考勤识别；"
+        commit_message="feat:添加对自动填充加班单根据的支持；支持2024.12--2025.2考勤识别；"
     else:
         # 在 Nuitka 打包环境下使用自定义的数据
         input_file_path = "test.txt"  
-        year = 2024  # 使用预设年份
-        month = 12  # 使用预设月份
+        year = 2025  # 使用预设年份
+        month = 1  # 使用预设月份
 
         try:
             # 获取最近一次提交的 commit message
@@ -152,10 +152,11 @@ if __name__ == "__main__":
         except subprocess.CalledProcessError as e:
             commit_message = "无法获取最新的 commit 信息"
 
+
         print("运行环境: 调试")
 
-    VER = "V1.0-"
-    DATE = "20250108"    
+    VER = "V1.1-"
+    DATE = "20250115"    
 
     print(f"版本: {VER}{DATE}")
     print("版本修改说明: " + commit_message)
