@@ -2,6 +2,8 @@ import datetime
 from daycheck import DayCheck
 import traceback
 from openpyxl.styles import PatternFill
+import calendar
+from log_config import logger
 
 def calculate_hour_difference(start: datetime.datetime, end: datetime.datetime) -> float:
     """
@@ -132,9 +134,9 @@ class AttendanceManager:
         else:
             return "日期类型未知"
 
-    
+    """处理工作日考勤"""
     def handle_workday(self, date: datetime.date, punches: list):
-        """处理工作日考勤"""
+        
         # 定义固定的基础时间
         AM_WORK_START = datetime.time(8, 30)  # 上午上班时间
         AM_WORK_END = datetime.time(12, 10)   # 上午下班时间
@@ -290,8 +292,9 @@ class AttendanceManager:
 
         return workday_attendance
 
+    """处理休息日"""
     def handle_restday(self, punches: list):
-        """处理休息日"""
+        
         non_workday_attendance = NonWorkdayAttendance()
 
         if len(punches) == 2:  # 如果有上下班时间，则视为加班
@@ -304,9 +307,9 @@ class AttendanceManager:
 
         return non_workday_attendance
 
-
+    """处理节假日"""
     def handle_holiday(self, punches: list):
-        """处理节假日"""
+        
         non_workday_attendance = NonWorkdayAttendance()
 
         if len(punches) == 2:  # 如果有上下班时间，则视为加班
@@ -319,11 +322,22 @@ class AttendanceManager:
 
         return non_workday_attendance
 
+    """处理指定年份和月份的考勤情况"""
     def process_month(self, month, attendance_data):
-        """处理指定年份和月份的考勤情况"""
+        # 获取该月的最大天数
+        max_day = calendar.monthrange(self.year, month)[1]  # 获取该月的天数
+
         # 获取该月的所有日期
-        month_dates = [datetime.date(self.year, month, day) for day in range(1, 32)
-                    if (datetime.date(self.year, month, day)).month == month]
+        month_dates = []
+        for day in range(1, max_day + 1):  # 从 1 到 max_day
+            try:
+                # 将日期添加到 month_dates 列表中
+                date = datetime.date(self.year, month, day)
+                month_dates.append(date)
+            except ValueError as e:
+                # 捕获无效日期的异常（如2月30日），并跳过
+                logger.error(f"Invalid date for {self.year}-{month}-{day}: {e}")
+                continue
 
         results = {}
 
@@ -362,306 +376,7 @@ class AttendanceManager:
 
         return results
 
-    def write_attendance_to_excel2(self, wb, attendance_data):
-        """
-        将考勤数据写入到 Excel 工作簿的 `detail` 表中。
 
-        参数：
-        wb (openpyxl.Workbook): 一个工作簿对象
-        attendance_data (dict): 包含考勤数据的字典
-        """
-        # 删除默认的工作表
-        if 'Sheet' in wb.sheetnames:
-            del wb['Sheet']
-
-        # 创建一个工作表名为 "detail"
-        ws = wb.create_sheet(title="detail")
-
-        # 写入表头
-        ws.append([
-            "日期", "星期", "上午上班状态", "上午上班时间", "上午下班状态", "上午下班时间",
-            "下午上班状态", "下午上班时间", "下午下班状态", "下午下班时间", 
-            "加班开始状态", "加班开始时间", "加班结束状态", "加班结束时间", "加班时长"
-        ])
-
-        # 遍历考勤数据字典，逐行写入
-        for date_str, data in attendance_data.items():
-            date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
-            weekday = get_weekday_chinese(date_str)
-
-            # 初始化每行的数据
-            row = [date_str, weekday]
-
-            # 处理工作日考勤数据
-            if isinstance(data, WorkdayAttendance):
-                # 上午上班
-                row.append(data.morning_in["status"] or "缺卡")
-                row.append(data.morning_in["time"] if data.morning_in["time"] else "缺卡")
-                # 上午下班
-                row.append(data.morning_out["status"] or "缺卡")
-                row.append(data.morning_out["time"] if data.morning_out["time"] else "缺卡")
-                # 下午上班
-                row.append(data.afternoon_in["status"] or "缺卡")
-                row.append(data.afternoon_in["time"] if data.afternoon_in["time"] else "缺卡")
-                # 下午下班
-                row.append(data.afternoon_out["status"] or "缺卡")
-                row.append(data.afternoon_out["time"] if data.afternoon_out["time"] else "缺卡")
-                # 加班
-                row.append(data.overtime_in["status"] or "缺卡")
-                row.append(data.overtime_in["time"] if data.overtime_in["time"] else "缺卡")
-                row.append(data.overtime_out["status"] or "缺卡")
-                row.append(data.overtime_out["time"] if data.overtime_out["time"] else "缺卡")
-                row.append(data.overtime_hours)  # 加班时长
-            elif isinstance(data, NonWorkdayAttendance):
-                # 非工作日数据
-                row.extend([data.status, data.work_start_time if data.work_start_time else "", 
-                            data.work_end_time if data.work_end_time else ""])
-                row.extend([""] * 10)  # 其他列为空
-
-            # 写入当前行数据
-            ws.append(row)
-
-        # 自动调整列宽
-        for col in ws.columns:
-            max_length = 0
-            column = col[0].column_letter  # 获取列字母
-            for cell in col:
-                try:
-                    if len(str(cell.value)) > max_length:
-                        max_length = len(cell.value)
-                except:
-                    pass
-            adjusted_width = (max_length + 2)
-            ws.column_dimensions[column].width = adjusted_width
-
-        print("考勤数据已成功写入 Excel 文件的 detail 表中。")
-
-
-
-    def write_attendance_to_excel2(self, wb, attendance_data):
-        """
-        将考勤数据写入到 Excel 工作簿的 `detail` 表中。
-
-        参数：
-        wb (openpyxl.Workbook): 一个工作簿对象
-        attendance_data (dict): 包含考勤数据的字典
-        """
-        # 删除默认的工作表
-        if 'Sheet' in wb.sheetnames:
-            del wb['Sheet']
-
-        # 创建一个工作表名为 "detail"
-        ws = wb.create_sheet(title="detail")
-
-        # 定义黄色和红色的单元格填充样式
-        yellow_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
-        red_fill = PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
-
-        # 写入表头
-        ws.append([
-            "日期", "星期", "类型", "状态",  # 新增的“类型”和“状态”列
-            "上午上班时间", "上午下班时间", "下午上班时间", "下午下班时间", 
-            "加班开始时间", "加班结束时间", "加班时长"
-        ])
-
-        # 遍历考勤数据字典，逐行写入
-        for date_str, data in attendance_data.items():
-            date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
-            weekday = get_weekday_chinese(date_str)
-
-            # 判断类型（工作日/非工作日）
-            day_type = self.day_check.get_day_type(date)
-            if "holiday" == day_type:
-                day_type = "节假日"
-            elif "restday" == day_type:
-                day_type = "公休日"
-            else:
-                day_type = "工作日"
-            # day_type = "工作日" if isinstance(data, WorkdayAttendance) else "非工作日"
-
-            # 判断状态（异常、加班、正常）
-            status = "正常"  # 默认是正常
-
-            if data == "缺勤":
-                status = "异常"
-            
-            elif isinstance(data, WorkdayAttendance):
-                # 检查是否存在缺卡、迟到或早退
-                if any([data.morning_in["status"] in ["缺卡", "迟到"],
-                        data.morning_out["status"] in ["缺卡", "早退"],
-                        data.afternoon_in["status"] in ["缺卡", "迟到"],
-                        data.afternoon_out["status"] in ["缺卡", "早退"]]):
-                    status = "异常"
-                # 如果加班时间存在，判断为加班
-                elif any([data.overtime_in["status"] != None, data.overtime_out["status"] != None]):
-                    status = "加班"
-            
-            elif isinstance(data, NonWorkdayAttendance):
-                if any([data.status in ["缺卡", "迟到"]]):
-                    status = "异常"
-                # 如果加班时间存在，判断为加班
-                elif any([data.status != None]):
-                    status = "加班"
-
-            # 初始化每行的数据
-            row = [date_str, weekday, day_type, status]
-
-            # 处理工作日考勤数据
-            if isinstance(data, WorkdayAttendance):
-                # 上午上班时间
-                row.append(self._get_time_or_empty(data.morning_in))
-                # 上午下班时间
-                row.append(self._get_time_or_empty(data.morning_out))
-                # 下午上班时间
-                row.append(self._get_time_or_empty(data.afternoon_in))
-                # 下午下班时间
-                row.append(self._get_time_or_empty(data.afternoon_out))
-                # 加班开始时间
-                row.append(self._get_time_or_empty(data.overtime_in))
-                # 加班结束时间
-                row.append(self._get_time_or_empty(data.overtime_out))
-                # 加班时长
-                row.append(data.overtime_hours if data.overtime_hours else "")
-            elif isinstance(data, NonWorkdayAttendance):
-                # 非工作日数据
-                row.extend([data.status, data.work_start_time if data.work_start_time else "", 
-                            data.work_end_time if data.work_end_time else ""])
-                row.extend([""] * 6)  # 其他列为空
-
-            # 写入当前行数据
-            ws.append(row)
-
-        # 自动调整列宽
-        for col in ws.columns:
-            max_length = 0
-            column = col[0].column_letter  # 获取列字母
-            for cell in col:
-                try:
-                    if len(str(cell.value)) > max_length:
-                        max_length = len(cell.value)
-                except:
-                    pass
-            adjusted_width = (max_length + 2)
-            ws.column_dimensions[column].width = adjusted_width
-
-        print("考勤数据已成功写入 Excel 文件的 detail 表中。")
-
-    def write_attendance_to_excel3(self, wb, attendance_data):
-        """
-        将考勤数据写入到 Excel 工作簿的 `detail` 表中。
-
-        参数：
-        wb (openpyxl.Workbook): 一个工作簿对象
-        attendance_data (dict): 包含考勤数据的字典
-        """
-        # 删除默认的工作表
-        if 'Sheet' in wb.sheetnames:
-            del wb['Sheet']
-
-        # 创建一个工作表名为 "detail"
-        ws = wb.create_sheet(title="detail")
-
-        # 定义黄色和红色的单元格填充样式
-        yellow_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
-        red_fill = PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
-
-        # 写入表头
-        ws.append([
-            "日期", "星期", "类型", "状态",  # 新增的“类型”和“状态”列
-            "上午上班时间", "上午下班时间", "下午上班时间", "下午下班时间", 
-            "加班开始时间", "加班结束时间", "加班时长"
-        ])
-
-        # 遍历考勤数据字典，逐行写入
-        for date_str, data in attendance_data.items():
-            date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
-            weekday = get_weekday_chinese(date_str)
-
-            # 判断类型（工作日/非工作日）
-            day_type = self.day_check.get_day_type(date)
-            if "holiday" == day_type:
-                day_type = "节假日"
-            elif "restday" == day_type:
-                day_type = "公休日"
-            else:
-                day_type = "工作日"
-
-            # 判断状态（异常、加班、正常）
-            status = "正常"  # 默认是正常
-
-            if data == "缺勤":
-                status = "异常"
-            
-            elif isinstance(data, WorkdayAttendance):
-                # 检查是否存在缺卡、迟到或早退
-                if any([data.morning_in["status"] in ["缺卡", "迟到"],
-                        data.morning_out["status"] in ["缺卡", "早退"],
-                        data.afternoon_in["status"] in ["缺卡", "迟到"],
-                        data.afternoon_out["status"] in ["缺卡", "早退"]]):
-                    status = "异常"
-                # 如果加班时间存在，判断为加班
-                elif any([data.overtime_in["status"] != None, data.overtime_out["status"] != None]):
-                    status = "加班"
-            
-            elif isinstance(data, NonWorkdayAttendance):
-                if any([data.status in ["缺卡", "迟到"]]):
-                    status = "异常"
-                # 如果加班时间存在，判断为加班
-                elif any([data.status != None]):
-                    status = "加班"
-
-            # 初始化每行的数据
-            row = [date_str, weekday, day_type, status]
-
-            # 处理工作日考勤数据
-            if isinstance(data, WorkdayAttendance):
-                # 上午上班时间
-                row.append(self._get_time_or_empty(data.morning_in))
-                # 上午下班时间
-                row.append(self._get_time_or_empty(data.morning_out))
-                # 下午上班时间
-                row.append(self._get_time_or_empty(data.afternoon_in))
-                # 下午下班时间
-                row.append(self._get_time_or_empty(data.afternoon_out))
-                # 加班开始时间
-                row.append(self._get_time_or_empty(data.overtime_in))
-                # 加班结束时间
-                row.append(self._get_time_or_empty(data.overtime_out))
-                # 加班时长
-                row.append(data.overtime_hours if data.overtime_hours else "")
-            elif isinstance(data, NonWorkdayAttendance):
-                # 非工作日数据
-                row.extend([data.status, data.work_start_time if data.work_start_time else "", 
-                            data.work_end_time if data.work_end_time else ""])
-                row.extend([""] * 6)  # 其他列为空
-
-            # 判断当前行的状态，如果是“加班”或“异常”，填充颜色
-            if status == "加班":
-                # 填充黄色
-                for i in range(1, 12):  # 填充从第一个表头到最后一个表头的所有单元格（11个列）
-                    ws.cell(row=ws.max_row, column=i).fill = yellow_fill
-            elif status == "异常":
-                # 填充红色
-                for i in range(1, 12):  # 填充从第一个表头到最后一个表头的所有单元格（11个列）
-                    ws.cell(row=ws.max_row, column=i).fill = red_fill
-
-            # 写入当前行数据
-            ws.append(row)
-
-        # 自动调整列宽
-        for col in ws.columns:
-            max_length = 0
-            column = col[0].column_letter  # 获取列字母
-            for cell in col:
-                try:
-                    if len(str(cell.value)) > max_length:
-                        max_length = len(cell.value)
-                except:
-                    pass
-            adjusted_width = (max_length + 2)
-            ws.column_dimensions[column].width = adjusted_width
-
-        print("考勤数据已成功写入 Excel 文件的 detail 表中。")
 
     def write_attendance_to_excel(self, wb, attendance_data):
         """
