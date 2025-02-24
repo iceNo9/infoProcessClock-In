@@ -4,6 +4,7 @@ from log_config import logger
 from parse import *
 from utils import *
 from main import process_file
+import sys
 
 class IPCiCmd(cmd.Cmd):
     prompt = '>>> '  # 设置命令行提示符
@@ -88,10 +89,10 @@ class IPCiCmd(cmd.Cmd):
     def do_exit(self, arg):
         """退出交互式命令行"""
         print("退出交互模式")
-        return True
+        sys.exit(0)
 
     def do_help(self, arg):
         """显示帮助信息"""
         print("命令:")
-        print("  parse <file_path> <year> <month> [-debug] 解析文件并生成结果")
+        print("  process <file_path> <year> <month> [--tm 3] [--debug] 解析文件并生成结果")
         print("  exit                             退出交互模式")

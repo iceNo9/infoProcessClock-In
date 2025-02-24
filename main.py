@@ -100,7 +100,7 @@ def main():
     logger.info(f"说明:{MESSAGE}")
 
     # 判断是否是 Nuitka 打包环境
-    is_packaged = not hasattr(sys, "_MEIPASS") and not os.path.exists(__file__)
+    is_packaged = hasattr(sys, "frozen") or not os.path.exists(__file__)
 
     if not is_packaged:   # 测试环境
         logger.info("运行环境:调试")
@@ -113,11 +113,11 @@ def main():
         is_debug = True
 
         process_file(input_file_path, year, month, 3, is_debug)
-        exit()
+        exit(0)
 
     else:
         logger.info("运行环境:打包")
-        project_dir = sys._MEIPASS  # 获取打包后的目录路径
+        project_dir = os.path.dirname(sys.executable)  # 获取打包后的目录路径
         
     try:
         # 设置命令行参数解析器
@@ -134,7 +134,6 @@ def main():
         if not args.file_path:
             logger.info("进入命令行交互模式... (输入 help 获取更多命令信息)")
             IPCiCmd(project_dir).cmdloop()  # 启动交互式命令行界面
-            exit()
         else:
             # 如果有命令行参数，则执行文件解析
             input_file_path = args.file_path
